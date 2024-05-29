@@ -10,3 +10,17 @@ CREATE TABLE IF NOT EXISTS manager (
     creation TIMESTAMP NOT NULL,
     account_type INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS employee (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    role TEXT,
+    department TEXT,
+    creation TIMESTAMP NOT NULL,
+    holidays INT NOT NULL,
+    manager_id INTEGER NOT NULL,
+    FOREIGN KEY (manager_id) REFERENCES manager(id)
+);

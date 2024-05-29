@@ -1,7 +1,9 @@
 import os
 import sqlite3
 import pytz
-from flask import Flask, render_template,g,request,redirect,url_for,session
+import random
+import pandas as pd
+from flask import Flask, render_template,g,request,redirect,url_for,session,jsonify
 from datetime import datetime, timedelta, date
 
 app = Flask(__name__)
@@ -15,6 +17,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 # set the path to the SQLite database file
 DATABASE = os.path.join(basedir, 'holiday_tracker.db')
 users = {}
+
+def generate_random_six_digit_number():
+    return random.randint(100000, 999999)
 
 def connect_db():
     """Connect to the database and create the 'activities' table if it doesn't exist."""
@@ -104,7 +109,7 @@ def login():
     db.row_factory = sqlite3.Row
     if 'user' in session:
         session.permanent = True
-        return redirect(url_for('tasks'))
+        return redirect(url_for('homepage'))
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
@@ -120,7 +125,7 @@ def login():
         else:
             user = dict(user)
             session['user'] = user
-            return redirect(url_for('home'))
+            return redirect(url_for('homepage'))
     return render_template("login.html")
 
 @app.route('/logout')
@@ -128,10 +133,78 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
 
+events = [
+    {"start": "2024-05-01", "end": "2024-05-02","name": "Shivaji", "tag": "Meeting", "description": "Project Meeting", "color": "#FF5733"},
+    {"start": "2024-05-01", "end": "2024-05-02","name": "Rebecca", "tag": "Meeting2", "description": "Project Meeting", "color": "#FF5733"},
+    {"start": "2024-05-09", "end": "2024-05-10","name": "Shrey", "tag": "Holiday", "description": "Public Holiday", "color": "#33FF57"},
+    {"start": "2024-05-15", "end": "2024-05-17","name": "Shivaji", "tag": "Conference", "description": "Tech Conference", "color": "#3357FF"}
+]
+
 # Home page
-@app.route('/home', methods=['GET', 'POST'])
+@app.route('/homepage', methods=['GET', 'POST'])
 def homepage():
+    if 'user' not in session:
+        return redirect(url_for('login'))
     return render_template("home.html")
+
+# Members page
+@app.route('/members', methods=['GET', 'POST'])
+def members():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    members = db.execute('SELECT * FROM employee WHERE manager_id = ?', [session['user']['id']]).fetchall()
+    member_ids = [member[0] for member in members]
+    member_names = [member[1]+" "+member[2] for member in members]
+    member_roles = [member[5] for member in members]
+    # Create a dictionary from lists
+    data = {
+        'Member_ID': member_ids,
+        'Member_Name': member_names,
+        'Member_Role': member_roles
+    }
+    # Create DataFrame from dictionary
+    members = pd.DataFrame(data)
+    members = members.to_dict('records')
+    return render_template("members.html", members = members)
+
+@app.route('/events')
+def get_events():
+    return jsonify(events)
+
+@app.route('/requests/count')
+def get_request_count():
+    # Assume you have a function `count_active_requests` to get the number of active requests
+    #count = count_active_requests()
+    count=1
+    return jsonify({"count": count})
+
+@app.route('/add_member', methods=['POST'])
+def add_member():
+    # Get data from the request
+    data = request.json
+    print("Received data:", data)
+    db = get_db()
+    cur = db.cursor()
+    london_tz = pytz.timezone('Europe/London')
+    current_time_london = datetime.now(london_tz)
+    db.execute('INSERT INTO employee (first_name, last_name, email, password, role, department, creation, holidays, manager_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [data["first-name"], data["last-name"], data["email"], generate_random_six_digit_number(), data["role"], data["department"], current_time_london, data["holidays"], session['user']['id']])
+    db.commit()
+    return jsonify({'message': 'Data received successfully'})
+
+@app.route('/delete_member', methods=['POST'])
+def delete_member():
+    if request.method == 'POST':
+        data = request.json
+        member_id = data.get('member_id')
+        db = get_db()
+        cur = db.cursor()
+        db.execute("DELETE FROM employee WHERE id = ?",[int(member_id)])
+        db.commit()
+        return "Member deleted successfully", 200
+    else:
+        return "Invalid request", 400
 
 if __name__ == '__main__':
     app.run(debug=True)

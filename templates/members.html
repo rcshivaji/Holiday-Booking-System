@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='calendar_style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-top">
+                <a href="/homepage" class="sidebar-link">Home</a>
+                <a href="/members" class="sidebar-link">Members</a>
+                <a href="/requests" class="sidebar-link">Requests<span id="request-count" class="request-count">0</span></a>
+            </div>
+            <div class="sidebar-bottom">
+                <button id="add-member" class="sidebar-button">Add Member</button>
+                <a href="/settings" class="sidebar-link">Settings</a>
+                <a href="/logout" class="sidebar-link">Log Out</a>
+            </div>
+        </div>
+        <div class="main-content">
+            {% for member in members %}
+            <div class="member-section">
+                <div class="member-info">
+                    <p>{{ member['Member_Name'] }}</p>
+                    <p>{{ member['Member_Role'] }}</p>
+                </div>
+                <button class="delete-button" data-member-id="{{member['Member_ID']}}">Delete</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Add Member Lightbox -->
+    <div id="lightbox" class="lightbox hidden">
+        <div class="lightbox-content">
+            <h2>Add Member</h2>
+            <form id="add-member-form">
+                <label for="first-name">First Name:</label>
+                <input type="text" id="first-name" name="first-name" required>
+                <label for="last-name">Last Name:</label>
+                <input type="text" id="last-name" name="last-name" required>
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+                <label for="holidays">Alloted Number of Holidays:</label>
+                <input type="number" id="holidays" name="holidays" required>
+                <label for="department">Department:</label>
+                <input type="text" id="department" name="department" placeholder="optional">
+                <label for="role">Role:</label>
+                <input type="text" id="role" name="role" placeholder="optional">
+                <button type="submit">Submit</button>
+                <button type="button" id="close-lightbox">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='members.js') }}"></script>
+</body>
+</html>
