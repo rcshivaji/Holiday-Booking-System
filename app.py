@@ -116,16 +116,27 @@ def login():
         db = get_db()
         db.row_factory = sqlite3.Row
         user = db.execute('SELECT * FROM manager WHERE email = ?', [email]).fetchone()
-        if user is None:
+        emp = db.execute('SELECT * FROM employee WHERE email = ?', [email]).fetchone()
+        if user is None and emp is None:
             error = 'User does not exist. Please create an account'
             return render_template('login.html', message=error)
-        elif user[4] != password:
-            error = 'Passwords do not match. Try again'
-            return render_template('login.html', message=error)
         else:
-            user = dict(user)
-            session['user'] = user
-            return redirect(url_for('homepage'))
+            if user is not None:
+                if user[4] != password:
+                    error = 'Passwords do not match. Try again'
+                    return render_template('login.html', message=error)
+                else:
+                    user = dict(user)
+                    session['user'] = user
+                    return redirect(url_for('homepage'))
+            else:
+                if emp[4] != password:
+                    error = 'Passwords do not match. Try again'
+                    return render_template('login.html', message=error)
+                else:
+                    user = dict(emp)
+                    session['user'] = user
+                    return redirect(url_for('employee_home'))
     return render_template("login.html")
 
 @app.route('/logout')
@@ -146,6 +157,13 @@ def homepage():
     if 'user' not in session:
         return redirect(url_for('login'))
     return render_template("home.html")
+
+# Employee Home page
+@app.route('/employee_home', methods=['GET', 'POST'])
+def employee_home():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    return render_template("employee-home.html")
 
 # Members page
 @app.route('/members', methods=['GET', 'POST'])
@@ -205,6 +223,13 @@ def delete_member():
         return "Member deleted successfully", 200
     else:
         return "Invalid request", 400
+
+@app.route('/request_holiday', methods=['POST'])
+def request_holiday():
+    # Get data from the request
+    data = request.get_json()
+    print(data)
+    return jsonify({'message': 'Data received successfully'})
 
 if __name__ == '__main__':
     app.run(debug=True)

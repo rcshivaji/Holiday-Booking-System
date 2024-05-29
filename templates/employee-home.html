@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homepage - Employee</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='calendar_style.css') }}">
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <style>
+        .hidden { display: none; }
+        
+        /* Lightbox styling */
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .lightbox-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            position: relative;
+            z-index: 1001;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label, input, select, button, small {
+            margin-bottom: 10px;
+        }
+        
+        input[type="date"] {
+            z-index: 1002; /* Ensure date input is above other content */
+        }
+        
+        .ui-datepicker {
+            z-index: 1003 !important; /* Ensure datepicker has highest z-index */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-top">
+                <a href="/employee_home" class="sidebar-link">Home</a>
+                <a href="/manage" class="sidebar-link">Manage Holidays</a>
+                <a href="/requests" class="sidebar-link">Requests<span id="request-count" class="request-count">0</span></a>
+            </div>
+            <div class="sidebar-bottom">
+                <button id="request-holiday" class="sidebar-button">Request Holiday</button>
+                <a href="/settings" class="sidebar-link">Settings</a>
+                <a href="/logout" class="sidebar-link">Log Out</a>
+            </div>
+        </div>
+        <div class="main-content">
+            <div id="controls">
+                <button id="prev-month">&lt;</button>
+                <select id="month-select">
+                    <option value="0">January</option>
+                    <option value="1">February</option>
+                    <option value="2">March</option>
+                    <option value="3">April</option>
+                    <option value="4">May</option>
+                    <option value="5">June</option>
+                    <option value="6">July</option>
+                    <option value="7">August</option>
+                    <option value="8">September</option>
+                    <option value="9">October</option>
+                    <option value="10">November</option>
+                    <option value="11">December</option>
+                </select>
+                <select id="year-select">
+                    <script>
+                        const currentYear = new Date().getFullYear();
+                        for (let i = currentYear - 50; i <= currentYear + 50; i++) {
+                            document.write('<option value="' + i + '">' + i + '</option>');
+                        }
+                    </script>
+                </select>
+                <button id="go-to-date">Go</button>
+                <button id="next-month">&gt;</button>
+            </div>
+            <div id="calendar-container">
+                <div id="calendar">
+                    <div class="day-header">Sunday</div>
+                    <div class="day-header">Monday</div>
+                    <div class="day-header">Tuesday</div>
+                    <div class="day-header">Wednesday</div>
+                    <div class="day-header">Thursday</div>
+                    <div class="day-header">Friday</div>
+                    <div class="day-header">Saturday</div>
+                </div>
+            </div>
+            <div id="event-details" class="hidden">
+                <h2 id="event-name"></h2>
+                <h3 id="event-tag"></h3>
+                <p id="event-description"></p>
+                <button onclick="closeDetails()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holiday Request Lightbox -->
+    <div id="lightbox" class="lightbox hidden">
+        <div class="lightbox-content">
+            <h2>Holiday Request</h2>
+            <form id="add-member-form">
+                <label for="holiday-type">Holiday Type:</label>
+                <select id="holiday-type" name="holiday-type" required>
+                    <option disabled="disabled" selected="selected">Choose option</option>
+                    <option value="normal">Normal Holiday</option>
+                    <option value="sick">Sick Leave</option>
+                    <option value="emergency">Emergency Holiday</option>
+                </select>
+                
+                <label for="start-date">Start Date:</label>
+                <input type="text" id="start-date" name="start-date" required>
+                
+                <label for="end-date">End Date (optional):</label>
+                <input type="text" id="end-date" name="end-date">
+                <small>Note: End Date is optional.</small>
+                
+                <label for="description">Brief Description:</label>
+                <textarea id="description" name="description" placeholder="optional"></textarea>
+                
+                <button type="submit">Submit</button>
+                <button type="button" id="close-lightbox">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='employee_home.js') }}"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script>
+    $(function() {
+        $("#start-date").datepicker();
+        $("#end-date").datepicker();
+    });
+    $(document).ready(function() {
+        // Show the lightbox
+        $('#open-lightbox-button').on('click', function() {
+            $('#lightbox').removeClass('hidden');
+        });
+        
+        // Hide the lightbox
+        $('#close-lightbox').on('click', function() {
+            $('#lightbox').addClass('hidden');
+        });
+
+        // Handle form submission
+        $('#add-member-form').on('submit', function(e) {
+            e.preventDefault(); // Prevent the default form submission
+
+            const formData = {
+                'holiday_type': $('#holiday-type').val(),
+                'start_date': $('#start-date').val(),
+                'end_date': $('#end-date').val(),
+                'description': $('#description').val()
+            };
+
+            $.ajax({
+                type: 'POST',
+                url: '/request_holiday',
+                data: JSON.stringify(formData),
+                contentType: 'application/json',
+                success: function(response) {
+                    console.log('Form submitted successfully');
+                    $('#lightbox').addClass('hidden');
+                    location.reload();
+                },
+                error: function(error) {
+                    console.error('Error submitting form:', error);
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>
