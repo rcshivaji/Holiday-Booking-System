@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Requests</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='calendar_style.css') }}">
+    <style>
+        .request-section {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+        .request-details {
+            display: none;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+        }
+        .arrow {
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        function toggleDetails(element) {
+            var details = element.closest('.request-section').nextElementSibling;
+            if (details.style.display === "none" || details.style.display === "") {
+                details.style.display = "block";
+            } else {
+                details.style.display = "none";
+            }
+        }
+
+        function handleAction(requestId, eid, holidays, sd, ed, action) {
+            fetch('/handle_request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ request_id: requestId, eid: eid, holidays: holidays, sd: sd, ed:ed, action: action })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert('An error occurred.');
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-top">
+                <a href="/homepage" class="sidebar-link">Home</a>
+                <a href="/members" class="sidebar-link">Members</a>
+                <a href="/requests" class="sidebar-link">Requests<span id="request-count" class="request-count">0</span></a>
+            </div>
+            <div class="sidebar-bottom">
+                <button id="add-member" class="sidebar-button">Add Member</button>
+                <a href="/settings" class="sidebar-link">Settings</a>
+                <a href="/logout" class="sidebar-link">Log Out</a>
+            </div>
+        </div>
+        <div class="main-content">
+            {% for request in requests %}
+            <div class="request-container">
+            <div class="request-section">
+                <div class="request-left">
+                    <span>{{ request.first_name }} {{request.last_name}} (<b>Role:</b> {{ request.role }})</span>
+                </div>
+                <div class="request-middle">
+                    <span>{{ request.start_date }} to {{ request.end_date }}</span>
+                </div>
+                <div class="request-right">
+                    <button onclick="handleAction('{{ request.id }}', '{{ request.eid }}', '{{ request.holidays }}', '{{ request.start_date }}', '{{ request.end_date }}', 1)">Accept</button>
+                    <button onclick="handleAction('{{ request.id }}', '{{ request.eid }}', '{{ request.holidays }}', '{{ request.start_date }}', '{{ request.end_date }}', 2)">Hold</button>
+                    <button onclick="handleAction('{{ request.id }}', '{{ request.eid }}', '{{ request.holidays }}', '{{ request.start_date }}', '{{ request.end_date }}', 3)">Reject</button>
+                    <span class="arrow" onclick="toggleDetails(this)">▼</span>
+                </div>
+            </div>
+            <div class="request-details">
+                <p><strong>Holiday Type:</strong> {{ request.hol_type }}</p>
+                <p><strong>Description:</strong> {{ request.desc }}</p>
+                <p><strong>Remaining Holidays:</strong> {{ request.holidays }}</p>
+            </div>
+            {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Member Lightbox -->
+    <div id="lightbox" class="lightbox hidden">
+        <div class="lightbox-content">
+            <h2>Add Member</h2>
+            <form id="add-member-form">
+                <label for="first-name">First Name:</label>
+                <input type="text" id="first-name" name="first-name" required>
+                <label for="last-name">Last Name:</label>
+                <input type="text" id="last-name" name="last-name" required>
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+                <label for="holidays">Alloted Number of Holidays:</label>
+                <input type="number" id="holidays" name="holidays" required>
+                <label for="department">Department:</label>
+                <input type="text" id="department" name="department" placeholder="optional">
+                <label for="role">Role:</label>
+                <input type="text" id="role" name="role" placeholder="optional">
+                <button type="submit">Submit</button>
+                <button type="button" id="close-lightbox">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='members.js') }}"></script>
+</body>
+</html>

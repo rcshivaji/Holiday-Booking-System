@@ -28,6 +28,12 @@ def connect_db():
         db.executescript(f.read().decode('utf8'))
     return db
 
+color_mapping = {
+    "Normal Holiday": "#FF5733",
+    "Sick Leave": "#FF5733",
+    "Emergency Holiday": "#33FF57"
+}
+
 
 def get_db():
     """Get a connection to the database."""
@@ -189,13 +195,24 @@ def members():
 
 @app.route('/events')
 def get_events():
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    events_list = db.execute('SELECT requests.*, employee.first_name FROM requests JOIN employee ON requests.eid = employee.id WHERE requests.mid = ?', [session['user']['id']]).fetchall()
+    # Convert the sqlite3.Row objects to a list of dictionaries
+    events_dict_list = [dict(row) for row in events_list]
+    df = pd.DataFrame(events_dict_list)
+    # Create the list of events in the specified format in one line
+    events = [{"start": row["start_date"], "end": row["end_date"], "name": row["first_name"], "tag": row["hol_type"], "description": row.get("desc", ""), "color": color_mapping.get(row["hol_type"], "#000000")} for _, row in df.iterrows()]
+
+    # Display the events list
+    print(events)
     return jsonify(events)
 
 @app.route('/requests/count')
 def get_request_count():
-    # Assume you have a function `count_active_requests` to get the number of active requests
-    #count = count_active_requests()
-    count=1
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    count = db.execute('SELECT COUNT(*) FROM requests WHERE (status = 0 OR status = 2) AND mid = ?',[session['user']['id']]).fetchone()[0]
     return jsonify({"count": count})
 
 @app.route('/add_member', methods=['POST'])
@@ -227,9 +244,50 @@ def delete_member():
 @app.route('/request_holiday', methods=['POST'])
 def request_holiday():
     # Get data from the request
-    data = request.get_json()
-    print(data)
-    return jsonify({'message': 'Data received successfully'})
+    if request.method == 'POST':
+        data = request.get_json()
+        print(data)
+        db = get_db()
+        cur = db.cursor()
+        db.execute('INSERT INTO requests (start_date, end_date, hol_type, desc, eid, mid) VALUES (?, ?, ?, ?, ?, ?)', [data["start_date"], data["end_date"], data["holiday_type"], data["description"], session['user']['id'], session['user']['manager_id']])
+        db.commit()
+        return jsonify({'message': 'Data received successfully'})
+
+# Requests page
+@app.route('/requests', methods=['GET', 'POST'])
+def requests():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    events_list = db.execute('SELECT requests.*, employee.first_name, employee.last_name, employee.role, employee.holidays FROM requests JOIN employee ON requests.eid = employee.id WHERE requests.mid = ? AND (requests.status = 0 OR requests.status = 2)', [session['user']['id']]).fetchall()
+    # Convert the sqlite3.Row objects to a list of dictionaries
+    events_dict_list = [dict(row) for row in events_list]
+    requests = pd.DataFrame(events_dict_list)
+    requests = requests.to_dict('records')
+    return render_template("requests.html", requests = requests)
+
+@app.route('/handle_request', methods=['POST'])
+def handle_request():
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    data = request.json
+    request_id = data['request_id']
+    action = data['action']
+    holidays = data['holidays']
+    sd = data['sd']
+    ed = data['ed']
+    eid = data['eid']
+    sd = datetime.strptime(sd, '%m/%d/%Y')
+    ed = datetime.strptime(ed, '%m/%d/%Y')
+    difference = abs((ed - sd).days)+1
+    if action == 1:
+        db.execute('UPDATE employee SET holidays=? WHERE id=?',[int(holidays)-difference,int(eid)])
+    db.execute('UPDATE requests SET status=? WHERE id=?',[int(action),int(request_id)])
+    db.commit()
+    response = {'status': 'success'}
+    return jsonify(response)
+
 
 if __name__ == '__main__':
     app.run(debug=True)

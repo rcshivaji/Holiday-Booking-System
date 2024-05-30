@@ -25,12 +25,13 @@ CREATE TABLE IF NOT EXISTS employee (
     FOREIGN KEY (manager_id) REFERENCES manager(id)
 );
 
-CREATE TABLE IF NOT EXISTS employee (
+CREATE TABLE IF NOT EXISTS requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     start_date TIMESTAMP NOT NULL,
     end_date TIMESTAMP NOT NULL,
     hol_type TEXT NOT NULL,
     desc TEXT,
+    status INTEGER NOT NULL DEFAULT 0,
     eid INTEGER NOT NULL,
     mid INTEGER NOT NULL,
     FOREIGN KEY (eid) REFERENCES employee(id),
