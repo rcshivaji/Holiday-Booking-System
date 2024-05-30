@@ -197,7 +197,22 @@ def members():
 def get_events():
     db = get_db()
     db.row_factory = sqlite3.Row
-    events_list = db.execute('SELECT requests.*, employee.first_name FROM requests JOIN employee ON requests.eid = employee.id WHERE requests.mid = ?', [session['user']['id']]).fetchall()
+    events_list = db.execute('SELECT requests.*, employee.first_name FROM requests JOIN employee ON requests.eid = employee.id WHERE requests.mid = ? AND requests.status = 1', [session['user']['id']]).fetchall()
+    # Convert the sqlite3.Row objects to a list of dictionaries
+    events_dict_list = [dict(row) for row in events_list]
+    df = pd.DataFrame(events_dict_list)
+    # Create the list of events in the specified format in one line
+    events = [{"start": row["start_date"], "end": row["end_date"], "name": row["first_name"], "tag": row["hol_type"], "description": row.get("desc", ""), "color": color_mapping.get(row["hol_type"], "#000000")} for _, row in df.iterrows()]
+
+    # Display the events list
+    print(events)
+    return jsonify(events)
+
+@app.route('/events_emp')
+def get_events_emp():
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    events_list = db.execute('SELECT requests.*, employee.first_name FROM requests JOIN employee ON requests.eid = employee.id WHERE requests.mid = ? AND requests.status = 1', [session['user']['manager_id']]).fetchall()
     # Convert the sqlite3.Row objects to a list of dictionaries
     events_dict_list = [dict(row) for row in events_list]
     df = pd.DataFrame(events_dict_list)
@@ -284,6 +299,55 @@ def handle_request():
     if action == 1:
         db.execute('UPDATE employee SET holidays=? WHERE id=?',[int(holidays)-difference,int(eid)])
     db.execute('UPDATE requests SET status=? WHERE id=?',[int(action),int(request_id)])
+    db.commit()
+    response = {'status': 'success'}
+    return jsonify(response)
+
+# Manage page
+@app.route('/manage', methods=['GET', 'POST'])
+def manage():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    events_list = db.execute('SELECT requests.*, employee.first_name, employee.last_name, employee.role, employee.holidays FROM requests JOIN employee ON requests.eid = employee.id WHERE requests.eid = ?', [session['user']['id']]).fetchall()
+    # Convert the sqlite3.Row objects to a list of dictionaries
+    events_dict_list = [dict(row) for row in events_list]
+    requests = pd.DataFrame(events_dict_list)
+    # Convert 'start_date' column to datetime objects
+    requests['start_date'] = pd.to_datetime(requests['start_date'], format='%m/%d/%Y')
+
+    # Get the current date in London timezone
+    london_tz = pytz.timezone('Europe/London')
+    current_time_london = datetime.now(london_tz)
+    current_date = current_time_london.date()
+    current_date = pd.to_datetime(current_date)
+
+    # Update 'status' column based on conditions
+    requests.loc[(requests['status'] == 1) & (requests['start_date'] < current_date), 'status'] = 5
+    status_mapping = {0: 'Unchecked', 1: 'Approved', 2: 'On Hold', 3: 'Rejected', 4: 'Cancelled', 5: 'Complete'}
+    # Map the values in the 'status' column using the mapping dictionary
+    requests['status_no'] = requests['status'].map(status_mapping)
+    requests = requests.to_dict('records')
+    return render_template("manage.html", requests = requests)
+
+@app.route('/remove_holiday', methods=['POST'])
+def remove_holiday():
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    data = request.json
+    request_id = data['request_id']
+    holidays = data['holidays']
+    sd = data['sd']
+    ed = data['ed']
+    eid = data['eid']
+    action = data['action']
+    sd = datetime.strptime(sd, '%m/%d/%Y')
+    ed = datetime.strptime(ed, '%m/%d/%Y')
+    difference = abs((ed - sd).days)+1
+    if action == 'Approved':
+        db.execute('UPDATE employee SET holidays=? WHERE id=?',[int(holidays)+difference,int(eid)])
+    db.execute('UPDATE requests SET status=? WHERE id=?',[4,int(request_id)])
     db.commit()
     response = {'status': 'success'}
     return jsonify(response)

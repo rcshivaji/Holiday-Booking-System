@@ -50,7 +50,51 @@
         .ui-datepicker {
             z-index: 1003 !important; /* Ensure datepicker has highest z-index */
         }
+
+        .request-section {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+        .request-details {
+            display: none;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+        }
+        .arrow {
+            cursor: pointer;
+        }
     </style>
+    <script>
+        function toggleDetails(element) {
+            var details = element.closest('.request-section').nextElementSibling;
+            if (details.style.display === "none" || details.style.display === "") {
+                details.style.display = "block";
+            } else {
+                details.style.display = "none";
+            }
+        }
+
+        function handleAction(requestId, eid, holidays, sd, ed, action) {
+            fetch('/remove_holiday', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ request_id: requestId, eid: eid, holidays: holidays, sd: sd, ed:ed, action:action})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert('An error occurred.');
+                }
+            });
+        }
+    </script>
 </head>
 <body>
     <div class="container">
@@ -66,50 +110,30 @@
             </div>
         </div>
         <div class="main-content">
-            <div id="controls">
-                <button id="prev-month">&lt;</button>
-                <select id="month-select">
-                    <option value="0">January</option>
-                    <option value="1">February</option>
-                    <option value="2">March</option>
-                    <option value="3">April</option>
-                    <option value="4">May</option>
-                    <option value="5">June</option>
-                    <option value="6">July</option>
-                    <option value="7">August</option>
-                    <option value="8">September</option>
-                    <option value="9">October</option>
-                    <option value="10">November</option>
-                    <option value="11">December</option>
-                </select>
-                <select id="year-select">
-                    <script>
-                        const currentYear = new Date().getFullYear();
-                        for (let i = currentYear - 50; i <= currentYear + 50; i++) {
-                            document.write('<option value="' + i + '">' + i + '</option>');
-                        }
-                    </script>
-                </select>
-                <button id="go-to-date">Go</button>
-                <button id="next-month">&gt;</button>
-            </div>
-            <div id="calendar-container">
-                <div id="calendar">
-                    <div class="day-header">Sunday</div>
-                    <div class="day-header">Monday</div>
-                    <div class="day-header">Tuesday</div>
-                    <div class="day-header">Wednesday</div>
-                    <div class="day-header">Thursday</div>
-                    <div class="day-header">Friday</div>
-                    <div class="day-header">Saturday</div>
+            {% for request in requests %}
+            <div class="request-container">
+            <div class="request-section">
+                <div class="request-left">
+                    <span>{{ request.start_date }} to {{ request.end_date }}</span>
                 </div>
+                <div class="request-middle">
+                    <span><b>Status:</b> {{ request.status_no }}</span>
+                </div>
+                
+                <div class="request-right">
+                    {% if request.status < 3 %}
+                    <button>Edit</button>
+                    <button onclick="handleAction('{{ request.id }}', '{{ request.eid }}', '{{ request.holidays }}', '{{ request.start_date }}', '{{ request.end_date }}', '{{ request.status }}')">Remove</button>
+                    <span class="arrow" onclick="toggleDetails(this)">▼</span>
+                    {% endif %}
+                </div>
+                
             </div>
-            <div id="event-details" class="hidden">
-                <h2 id="event-name"></h2>
-                <h3 id="event-tag"></h3>
-                <p id="event-description"></p>
-                <button onclick="closeDetails()">Close</button>
+            <div class="request-details">
+                <p><strong>Holiday Type:</strong> {{ request.hol_type }}</p>
+                <p><strong>Description:</strong> {{ request.desc }}</p>
             </div>
+            {% endfor %}
         </div>
     </div>
 
@@ -142,7 +166,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='employee_home.js') }}"></script>
+    <script src="{{ url_for('static', filename='manage.js') }}"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
 <script>

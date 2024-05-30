@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", function() {
     
 
     function loadEvents() {
-        fetch(`/events?month=${currentMonth + 1}&year=${currentYear}`)
+        fetch(`/events_emp?month=${currentMonth + 1}&year=${currentYear}`)
             .then(response => response.json())
             .then(events => {
                 renderCalendar(events);
@@ -125,19 +125,7 @@ document.addEventListener("DOMContentLoaded", function() {
         currentYear = parseInt(yearSelect.value);
         loadEvents();
     });
-
-    function updateRequestCount() {
-        fetch('/requests/count')
-            .then(response => response.json())
-            .then(data => {
-                requestCount.textContent = data.count;
-            });
-    }
-
-    setInterval(updateRequestCount, 10000);
-
     loadEvents();
-    updateRequestCount();
 });
 
 function closeDetails() {
